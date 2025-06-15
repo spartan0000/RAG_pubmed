@@ -164,7 +164,7 @@ def format_pubmed_articles(pubmed_results):
             """
         ])
         pubmed_articles.append(article)
-        return pubmed_articles
+        return ''.join(pubmed_articles)
     
 #getting the output formatted to feed the LLM
 def format_rag_output(rag_results):
@@ -178,4 +178,4 @@ def format_rag_output(rag_results):
             **Abstract:** {rag_results[i]['abstract']}
             ---"""])
         rag_articles.append(article)
-    return rag_articles
+    return ''.join(rag_articles)
