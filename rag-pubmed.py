@@ -178,4 +178,4 @@ def format_rag_output(rag_results):
             **Abstract:** {rag_results[i]['abstract']}
             ---"""])
         rag_articles.append(article)
-    return ''.join(rag_articles)
+    return ''.join(rag_articles)  
