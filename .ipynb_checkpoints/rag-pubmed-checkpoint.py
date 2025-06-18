@@ -13,7 +13,7 @@ from Bio import Entrez
 openai.api_key = os.getenv('OPENAI_API_KEY')
 Entrez.email = os.getenv('EMAIL')
 
-chroma_client = client = chromadb.PersistentClient(path = './chroma_db')
+chroma_client = chromadb.Client(Settings(persist_directory = './chroma_db'))
 collection = chroma_client.get_or_create_collection('pubmed_cache')
 
 openai_client = OpenAI()
@@ -116,43 +116,27 @@ def cache_abstracts(results):
     metadatas = []
     
     for result in results:
-        abstract = result.get('Abstract', '').strip()
-        if not abstract:
-            continue
-        
-        try:
-            embedding = get_embedding(abstract)
-            if not embedding or not isinstance(embedding, list):
-                
-                print(f'Skipping PMID {result.get("PMID")} due to invalid embedding')
-                continue
-        except Exception as e:
-            print(f'Error embedding PMID {result.get("PMID")} - invalid embedding')
-            continue
+        abstract = result['Abstract']
         documents.append(abstract)
         ids.append(result['PMID'])
-        embeddings.append(embedding)
+        embeddings.append(get_embedding(abstract))
         metadatas.append({
-            'title':result.get('Title', ''),
-            'journal':result.get('Journal', ''),
-            'authors':result.get('Authors', ''),
-            'publication date':result.get('Publication Date', ''),
-            'keywords':result.get('Keywords', ''),
+            'title':result['Title'],
+            'journal':result['Journal'],
+            'authors':result['Authors'],
+            'publication date':result['Publication Date'],
+            'keywords':result['Keywords'],
         })
             
-    if documents:   
-        collection.add(
-            documents = documents,
-            ids = ids,
-            embeddings = embeddings,
-            metadatas = metadatas,
-        )
-    else:
-        print('No valid documents to cache')
+        
+    collection.add(
+        documents = documents,
+        ids = ids,
+        embeddings = embeddings,
+        metadatas = metadatas,
+    )
 
 #look up query in vector database
-#may need to add some function here to return nothing if no documents meet a threshold for similarity
-
 def vector_db_lookup(query_embedding, n_res = 5):
     results = collection.query(query_embeddings = [query_embedding], n_results = n_res)
     if results['documents']:
@@ -187,7 +171,7 @@ def format_rag_output(rag_results):
     rag_articles = []
     for i in range(len(rag_results)):
         article =  "\n".join([
-            f"""Article(Source: {rag_results[i].get('source', 'Unknown')}
+            f"""Article(Source: {result.get('source', 'Unknown')}
             **Title:** {rag_results[i]['metadata'].get('title', '')}
             **Authors:** {rag_results[i]['metadata'].get('authors', '')}
             **Journal:** {rag_results[i]['metadata'].get('journal', '')}
@@ -222,24 +206,3 @@ def summarize(rag_pubmed_output):
         temperature = 0
     )
     return response.output[0].content[0].text
-
-
-
-if __name__ == '__main__':
-    user_query = input('Input a query as well as any dates if relevant: ')
-    vector_query = get_embedding(user_query)
-    pubmed_query = translate_query(user_query)
-
-    rag_results = vector_db_lookup(vector_query)
-    pubmed_results = get_articles(pubmed_query, n_results=5)
-
-    cache_abstracts(pubmed_results)
-
-    pubmed_output = format_pubmed_articles(pubmed_results)
-    rag_output = format_rag_output(rag_results)
-
-    composite_output = pubmed_output + rag_output
-
-    summary = summarize(composite_output)
-
-    print(summary)
