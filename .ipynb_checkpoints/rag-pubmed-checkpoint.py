@@ -206,24 +206,3 @@ def summarize(rag_pubmed_output):
         temperature = 0
     )
     return response.output[0].content[0].text
-
-
-
-if __name__ == '__main__':
-    user_query = input('Input a query term: ')
-    vector_query = get_embedding(user_query)
-    pubmed_query = translate_query(user_query)
-
-    rag_results = vector_db_lookup(vector_query)
-    pubmed_results = get_articles(pubmed_query)
-
-    cache_abstracts(pubmed_results)
-
-    pubmed_output = format_pubmed_articles(pubmed_results)
-    rag_output = format_rag_output(rag_results)
-
-    composite_output = pubmed_output + rag_output
-
-    summary = summarize(composite_output)
-
-    print(summary)
